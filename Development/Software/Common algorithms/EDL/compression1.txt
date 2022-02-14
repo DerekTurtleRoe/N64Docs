@@ -1,0 +1,819 @@
+800134D0:	type 1 decompression
+	accepts: A0=p->necessary values saved to stack
+		0x0	4	target address	[801BF220]
+		0x4	4	source address	[803AE628]
+		0x8	4	compressed size
+		0xC	4	decompressed size
+		0x10	4	compression type
+		0x14	4	system endianess: 1=big endian
+		0x18	4	file endianess: 1=big endian
+		0x1C	4	error flags
+	note: A0's data will be noted here as 'root'
+tables:
+	80112EE4	0x10 slots	0x4 each
+		tallies number of times a slot has been called
+	800B27A0	0x20: could be fixed table	0x1 each
+		???
+		00 01 02 03 04 05 06 07 08 0A 0C 0E 10 14 18 1C
+		20 28 30 38 40 50 60 70 80 A0 C0 E0 FF 00 00 00
+	800B27C0	0x20: could be fixed table	0x1 each
+		???
+		00 00 00 00 00 00 00 00 01 01 01 01 02 02 02 02
+		03 03 03 03 04 04 04 04 05 05 05 05 00 00 00 00
+	800B27E0	0x3C: could be fixed table	0x2 each
+		???
+		0000 0001 0002 0003 0004 0006 0008 000C
+		0010 0018 0020 0030 0040 0060 0080 00C0
+		0100 0180 0200 0300 0400 0600 0800 0C00
+		1000 1800 2000 3000 4000 6000
+	800B281C	0x20: could be fixed table	0x1 each
+		???
+		00 00 00 00 01 01 02 02 03 03 04 04 05 05 06 06
+		07 07 08 08 09 09 0A 0A 0B 0B 0C 0C 0D 0D 00 00
+	800B283C	variable	0x4 each
+		initially a list of nibbles used when tallying 80112EE4 table
+		later, sorted list of slot# instances
+	800B2CB8	variable	0x4 each
+		bitsample table; see notes in the section below for details
+	800B3134	variable	0x4 each
+		sorted list: lists when each slot# instance occured in the original string of values
+	801032B0	variable	0x2 each	0x800 maximum (0xC00)
+		table: buffer of short values: each entry is coded
+			000F	slot# (#bits) for normal entries
+			0070	slot# (#bits) for those outside buffer - copy commands
+			FF80	occurance of thingy in list
+	80108970	variable	0x2 each	0x200 maximum	(0x600)
+		table: buffer of short values
+	80108FA0	variable	0x1 each
+		buffer listing all copy-type commands for further composition
+
+800134D0:	
+ADDIU	SP,SP,FFA8
+SW	S8,0050 (SP)
+SW	S7,004C (SP)
+SW	S6,0048 (SP)
+SW	S5,0044 (SP)
+SW	S4,0040 (SP)
+SW	S3,003C (SP)
+SW	S2,0038 (SP)
+SW	S1,0034 (SP)
+SW	S0,0030 (SP)
+SW	A0,0004 (SP)	;SP+4=root
+LW	S8,0000 (A0)	;S8=p->target
+SW	R0,001C (SP)	;SP+1C=0
+LW	V0,0004 (A0)	;V0=p->data
+ADDIU	T4,R0,0020	;T4=0x20
+LW	T2,000C (V0)	;T2=first word of data - a datatable word
+LW	S4,0010 (V0)	;S4=second word of data - next datatable
+ADDIU	S1,V0,0014	;S1=p->next word of data
+ADDIU	T4,T4,FFFF	;T4=1F (countdown through datatable word)
+//8001351C:	test if there are bits left in datatable word
+BGEZ	T4,80013554	;branch if word not empty
+ANDI	A2,T2,0001	;A2=state of bit in next slot of table
+//80013524:	get the next datatable word and stuff
+ADDU	A2,T2,R0	;A2=T2: current datatable
+ADDU	T2,S4,R0	;T2=S4=next datatable
+LW	S4,0000 (S1)	;S4=grab following word to take its place
+ADDIU	S1,S1,0004	;S1+=4: p->next word of data
+ADDIU	V0,T4,0001	;V0=countdown+1
+SLLV	V0,T2,V0	;V0=next word pushed to account for any remaining bits
+ADDU	V0,A2,V0	;V0=both words tacked together
+ANDI	A2,V0,0001	;A2=state of bit in next slot of table
+SUBU	V0,R0,T4	;V0=-T4
+SRLV	T2,T2,V0	;roll datatable to next position
+J	80013558
+ADDIU	T4,T4,0020	;T4+=20: 32 more bits in next word
+//80013554:
+SRL	T2,T2,0x1	;roll the datatable word around to the next bit
+//80013558:	mode 0
+BNEZ	A2,80013608	;branch when bit set
+ADDIU	S7,R0,0001	;S7=1
+ADDIU	T4,T4,FFF1	;T4-=0xF
+BGEZL	T4,8001359C	;branch if there's still data in datatable
+ANDI	T1,T2,7FFF	;T1=next 15 bits
+ADDU	T1,T2,R0
+ADDU	T2,S4,R0
+LW	S4,0000 (S1)
+ADDIU	S1,S1,0004
+ADDIU	V0,T4,000F
+SLLV	V0,T2,V0
+ADDU	V0,T1,V0
+ANDI	T1,V0,7FFF
+SUBU	V0,R0,T4
+SRLV	T2,T2,V0
+J	800135A0
+ADDIU	T4,T4,0020
+//8001359C:
+SRL	T2,T2,0xF	;roll the datatable around 15 bits
+//800135A0:	write data to target when bit=0
+ADDU	V0,T1,R0	;V0=next 15 bits of data
+BEQ	V0,R0,80013F00	;branch if =0
+ADDIU	T1,T1,FFFF	;next 15 bits -1
+//800135AC:	loop: copy next T1 bytes to target
+ADDIU	T4,T4,FFF8	;T4=datatable count -8
+BGEZ	T4,800135E8	;branch if more data in datatable
+ANDI	A2,T2,00FF	;A2=next 8 bits of datatable
+ADDU	A2,T2,R0
+ADDU	T2,S4,R0
+LW	S4,0000 (S1)
+ADDIU	S1,S1,0004
+ADDIU	V0,T4,0008
+SLLV	V0,T2,V0
+ADDU	V0,A2,V0
+ANDI	A2,V0,00FF
+SUBU	V0,R0,T4
+SRLV	T2,T2,V0
+J	800135EC
+ADDIU	T4,T4,0020
+//800135E8:
+SRL	T2,T2,0x8	;roll datatable around 8 bits
+//800135EC:	write byte to target
+SB	A2,0000 (S8)	;save byte to target
+ADDIU	S8,S8,0001	;target++
+ADDU	V0,T1,R0	;V0=15bits-1
+BNEZ	V0,800135AC	;loop until T1 is empty
+ADDIU	T1,T1,FFFF	;T1--
+J	80013F04
+ADDIU	T4,T4,FFFF	;datatable count--
+//80013608:	mode 1: COPY
+SW	S7,0014 (SP)	;SP+14=1
+//8001360C:
+LW	V0,0014 (SP)	;V0=buffer size	1 for big guy, 0 for smaller one
+LUI	S7,8011
+ADDIU	S7,S7,8970	;S7=80108970: 0x200 sized buffer
+ADDIU	S3,R0,0008	;S3=8	in nibble table, 8+ are the commandy-guys
+SW	S7,000C (SP)	;SP+C=80108970
+ADDU	S7,V0,R0	;S7=V0=value from before
+ADDIU	S7,S7,FFFF	;S7--
+BEQ	V0,R0,80013640	;branch if buffer=0	0x200 sized thingy
+SW	S7,0014 (SP)	;save it back to SP+14
+LUI	S7,8010
+ADDIU	S7,S7,32B0	;S7=801032B0	0x800 sized buffer
+SW	S7,000C (SP)	;SP+C=801032B0 if value not 0!
+ADDIU	S3,R0,000A	;S3=A
+//80013640:	retrieve # in tables
+ADDIU	T4,T4,FFF7	;T4-=9: datatable countdown-9
+BGEZ	T4,8001367C	;branch if count still running
+ANDI	A2,T2,01FF	;A2=datatable & 1FF: next nine bits of datatable
+ADDU	A2,T2,R0
+ADDU	T2,S4,R0
+LW	S4,0000 (S1)
+ADDIU	S1,S1,0004
+ADDIU	V0,T4,0009
+SLLV	V0,T2,V0
+ADDU	V0,A2,V0
+ANDI	A2,V0,01FF
+SUBU	V0,R0,T4
+SRLV	T2,T2,V0
+J	80013680
+ADDIU	T4,T4,0020
+//8001367C:
+SRL	T2,T2,0x9	;T2=datatable - 9 entries
+//80013680:
+BEQ	A2,R0,80013C58	;branch if next nine bits in datatable are blank
+ADDU	T0,A2,R0	;T0=next nine bits in datatable
+ADDIU	A3,R0,0001	;A3=1
+LUI	S7,8011
+ADDIU	S7,S7,2EE0	;S7=80112EE0: count of each type of nibble that occurs
+ADDIU	V1,S7,0004	;V1=80112EE4: nibbles 1+
+//80013698:	loop to initialize 80112EE4 entries (80112EE4-80112F60)
+SW	R0,0000 (V1)	;0->80112EE4+
+ADDIU	A3,A3,0001	;A3++
+SLTIU	V0,A3,0021
+BNEZ	V0,80013698	;loop for 0x20
+ADDIU	V1,V1,0004	;V1+=4
+ADDU	A3,R0,R0	;A3=0
+LUI	A0,800B
+ADDIU	A0,A0,283C	;A0=800B283C: acts as an index of the nibbles used when creating the index table
+//800136B8:	generate the list of nibbles: pull bit
+ADDIU	T4,T4,FFFF	;T4=datatable countdown--
+BGEZ	T4,800136F4	;branch while there's still bits in the register
+ANDI	A2,T2,0001	;A2=next bit in clump
+ADDU	A2,T2,R0
+ADDU	T2,S4,R0
+LW	S4,0000 (S1)
+ADDIU	S1,S1,0004
+ADDIU	V0,T4,0001
+SLLV	V0,T2,V0
+ADDU	V0,A2,V0
+ANDI	A2,V0,0001
+SUBU	V0,R0,T4
+SRLV	T2,T2,V0
+J	800136F8
+ADDIU	T4,T4,0020
+//800136F4:
+SRL	T2,T2,0x1	;roll to next bit in datatable
+//800136F8:	test if this next bit is set
+ADDIU	S7,R0,0001
+BNE	A2,S7,80013750	;branch if bit not set (=0)
+NOP	
+ADDIU	T4,T4,FFFC	;T4=datatable count -4
+BGEZ	T4,80013748	;branch if still more in datatable
+ANDI	S7,T2,000F	;S7=next four bits
+SW	T2,001C (SP)
+ADDU	T2,S4,R0
+LW	S4,0000 (S1)
+ADDIU	S1,S1,0004
+LW	S7,001C (SP)
+ADDIU	V0,T4,0004
+SLLV	V0,T2,V0
+ADDU	V0,S7,V0
+ANDI	V0,V0,000F
+SW	V0,001C (SP)
+SUBU	V0,R0,T4
+SRLV	T2,T2,V0
+J	80013750
+ADDIU	T4,T4,0020
+//80013748:	draw next nibble to determine slot in index table
+SW	S7,001C (SP)	;SP+1C=next four bits
+SRL	T2,T2,0x4	;T2=roll over next four bits in datatable
+//80013750:	increment value in index table
+LW	S7,001C (SP)	;S7=SP+1C: if bit=0, uses previous value
+SLL	V1,S7,0x2	;V1=bits*=4; bits to offset
+SW	S7,0000 (A0)	;800B283C=bits
+LUI	S7,8011
+ADDIU	S7,S7,2EE0	;S7=80112EE0
+ADDU	V1,V1,S7	;V1=80112EE0+offset
+LW	V0,0000 (V1)	;V0=value in table
+ADDIU	A3,A3,0001	;A3++
+ADDIU	V0,V0,0001	;V0++
+SW	V0,0000 (V1)	;save the incremented value
+SLTU	V0,A3,T0	;count<T0: T0=clump of nine bits from datatable
+BNEZ	V0,800136B8	;branch if not through them yet
+ADDIU	A0,A0,0004	;A0+=4: 800B283C+=4
+//80013784:	fry 0 entries
+LUI	AT,8011
+SW	R0,2EE0 (AT)	;0->80112EE0, frying any entry there!  the horror!
+ADDU	T3,R0,R0	;T3=0	offset in 800B3134 table
+ADDIU	A3,R0,0001	;A3=1	sort for this entry number
+//80013794:	generate a sorted list of nibbles
+BEQ	T0,R0,800137DC	;branch if 9bit clump =0
+ADDU	A1,R0,R0	;A1=0	count
+LUI	A0,800B
+ADDIU	A0,A0,283C	;A0=800B283C: index of the nibbles used in index table generation
+SLL	V0,T3,0x2	;V0=T3->offset
+LUI	S7,800B
+ADDIU	S7,S7,3134	;S7=800B3134: sorted list of nibbles
+ADDU	V1,V0,S7	;V1=800B3134+offset
+//800137B4:	nibble-matching: creates an index of which entries occur when
+LW	V0,0000 (A0)	;V0=one of the nibbles used to make the index table
+BNEL	V0,A3,800137D0	;if 800B283C!=A3,branch
+ADDIU	A1,A1,0001	;A1++
+SW	A1,0000 (V1)	;save count->800B3134+offset
+ADDIU	V1,V1,0004	;next 800B3134 entry
+ADDIU	T3,T3,0001	;T3++
+ADDIU	A1,A1,0001	;count++
+//800137D0:	iterate through entire list sorting all entries
+SLTU	V0,A1,T0	;true if count < total entries
+BNEZ	V0,800137B4	;loop until count >= total entries
+ADDIU	A0,A0,0004	;A0=next entry in 800B283C
+//800137DC:	move onto sorting 0-15
+ADDIU	A3,A3,0001	;A3++
+SLTIU	V0,A3,0010
+BNEZ	V0,80013794	;branch if A3<0x10
+ADDIU	T1,R0,0001	;T1=1
+//800137EC:
+ADDU	T3,R0,R0	;T3=0
+LUI	S7,8011
+ADDIU	S7,S7,2EE0	;S7=80112EE0
+ADDIU	A0,S7,0004	;A0=80112EE4
+//800137FC:		this changes index of nibbles to slot# table
+LW	V0,0000 (A0)	;V0=value in 80112EE4 index table
+LW	V0,0000 (A0)	;V0=value in 80112EE4 index table
+BEQ	V0,R0,80013838	;branch if V0=0
+ADDIU	A3,R0,0001	;A3=1
+ADDU	A1,A0,R0	;A1=A0=index table
+SLL	V0,T3,0x2	;V0=T3->offset
+LUI	S7,800B
+ADDIU	S7,S7,283C	;S7=800B283C	index of nibbles used for table
+ADDU	V1,V0,S7	;V1=800B283C+offset
+//8001381C:	fill table with slot number for given# entries
+SW	T1,0000 (V1)	;save slot counter->800B283C+offset
+ADDIU	V1,V1,0004	;next entry in 800B283C
+LW	V0,0000 (A1)	;V0=value in 80112EE4
+ADDIU	A3,A3,0001	;A3++
+SLTU	V0,V0,A3
+BEQ	V0,R0,8001381C	;loop this while more of them around
+ADDIU	T3,T3,0001
+//80013838:
+ADDIU	T1,T1,0001	;T1++	slot counter++
+SLTIU	V0,T1,0010
+BNEZ	V0,800137FC	;loop while there's still more slots left
+ADDIU	A0,A0,0004	;A0=next word in table
+//80013848:	set new end of list marker (since 0 entries have been abolished)
+SLL	V0,T3,0x2	;V0=#total entries noted in 80112EE4 table -> offset
+LUI	S7,800B
+ADDIU	S7,S7,283C	;S7=800B283C: index of slot numbers
+ADDU	V0,V0,S7	;V0=end of index
+SW	R0,0000 (V0)	;0->end of index (EOL marker)
+LUI	T1,800B
+LW	T1,283C (T1)	;first slot#
+ADDU	A3,R0,R0	;A3=0
+BEQ	T1,R0,80013910	;branch at the end
+ADDU	T3,R0,R0	;T3=0	count
+ADDU	T6,R0,R0	;T6=0
+LUI	T5,800B
+ADDIU	T5,T5,283C	;T5=800B283C
+//8001387C:	generate the bitssample table
+LW	V0,0000 (T5)	;V0=slot number
+BNE	V0,T1,800138F4	;branch if you're into the next slot number
+SLL	V0,T3,0x2	;V0=count->offset
+ADDIU	S7,R0,0001	;S7=1
+SLLV	T7,S7,T1	;T7=1<<slot number	terminating bit; each sample has slot# bits in it!
+LUI	V1,800B
+ADDIU	V1,V1,283C	;V1=800B283C
+ADDU	T0,V0,V1	;T0=index of slot#s + offset: slot#
+LUI	S7,800B
+ADDIU	S7,S7,2CB8	;S7=800B2CB8: bitsample table
+ADDU	A2,V0,S7	;A2=800B2CB8+offset
+//800138A8:
+OR	A1,A3,T7	;A1=A3|value; A3 | terminating bit
+ADDIU	A3,A3,0001	;A3++
+SW	R0,0000 (A2)	;0->bitsample table+offset
+ADDU	A0,A2,R0	;A0=A2=bitsample table entry
+//800138B8:	generate bit samples
+//	slot# corresponds to #bitsin each sample
+//	therefore, 1<<slot# sets the terminating bit
+//	bits are essentially stored backward:
+//		in a set of 5 bits, 3 would be 18, since 00011 = 11000
+//	start with 0.  +1 for each entry within the same slot, *2 when changing slots
+LW	V0,0000 (A0)	;V0=value in new table (0 from above)
+ANDI	V1,A1,0001	;V1=bit on end of value	(A3|(1<<slot#))&1
+SRL	A1,A1,0x1	;roll A1 1 bit
+ADDIU	S7,R0,0001	;S7=1
+SLL	V0,V0,0x1	;V0=value in new table *2
+ADDU	V0,V0,V1	;V0+=bit on end of A1 value
+BNE	A1,S7,800138B8	;loop until you hit TERMINATING bit
+SW	V0,0000 (A0)	;save new value to new table
+//800138D8:	loop for all samples!
+ADDIU	T0,T0,0004	;next value in index of slot#
+ADDIU	A2,A2,0004	;next 800B2CB8 value
+ADDIU	T6,T6,0004	;T6+=4
+LW	V0,0000 (T0)	;V0=next slot#
+ADDIU	T5,T5,0004	;T5+=4	same as T0
+BEQ	V0,T1,800138A8	;branch if more of the same
+ADDIU	T3,T3,0001	;T3++
+//800138F4:	loop for all slots
+LUI	V0,800B
+ADDU	V0,V0,T6	;V0=800B283C+offset
+LW	V0,283C (V0)	;V0=slot#
+SLL	A3,A3,0x1	;A3*=2
+BNEZ	V0,8001387C	;continue while entries remain
+ADDIU	T1,T1,0001	;T1++	next entry#
+//8001390C:
+ADDU	A3,R0,R0	;A3=0
+LUI	V1,8011
+ADDIU	V1,V1,8FA0	;V1=80108FA0
+//80013918:	loop to initialize 80108FA0 table
+SB	R0,0000 (V1)	;0->80108FA0
+ADDIU	A3,A3,0001	;A3++
+SRLV	V0,A3,S3	;if S3=8, stops at 0x100; if S3=A, stops at 0x400
+BEQ	V0,R0,80013918	;keep going for size of table
+ADDIU	V1,V1,0001	;V1++	80108FA0++
+//8001392C:
+ADDIU	T1,R0,0001	;T1=1
+SLTU	V0,T1,S3
+BEQ	V0,R0,800139F0	;branch if size of table<1
+ADDU	T3,R0,R0	;T3=0
+ADDIU	T7,R0,0004	;T7=4
+LUI	S7,8011
+ADDIU	S7,S7,2EE0	;S7=80112EE0
+ADDIU	T6,S7,0004	;T6=80112EE0
+//8001394C:	
+LW	V0,0000 (T6)	;V0=# of entries in slot
+BEQ	V0,R0,800139DC
+ADDIU	A3,R0,0001	;A3=1
+SLLV	T5,A3,T1	;T5=1<<(entry#)	T5=size of bitsample
+LUI	V0,8011
+ADDIU	V0,V0,2EE0	;V0=80112EE0
+ADDU	S0,T7,V0	;S0=offset in #entry table
+SLL	V0,T3,0x2	;number of entries with values -> offset
+LUI	S7,800B
+ADDIU	S7,S7,3134	;S7=800B3134		list of when slot#s occured
+ADDU	A1,V0,S7	;A1=800B3134+offset	p->when entry occured
+LUI	S7,800B
+ADDIU	S7,S7,2CB8	;S7=800B2CB8		bitsample table
+ADDU	A0,V0,S7	;A0=800B2CB8+offset
+//80013984:
+LW	A2,0000 (A0)	;A2=value from bitsample table
+LW	S7,000C (SP)	;S7=[801032B0]	p->buffer
+ADDU	T0,A1,R0	;T0=A1=800B3134+offset	p->when entry occured
+SLL	V0,A2,0x1	;V0=value from bitsample table*2
+ADDU	V1,V0,S7	;V1=offset + [801032B0]
+//80013998:	loop entries for particular slot
+LW	V0,0000 (T0)	;V0=when entry occured
+ADDU	A2,A2,T5	;A2=bitsample + size of bitsample	+keep tacking on the #bits value repeatedly
+SLL	V0,V0,0x7	;V0=when entry occured * 0x80
+ADDU	V0,V0,T1	;V0+=slot#
+SH	V0,0000 (V1)	;save to 801032B0 table
+SLL	V0,T5,0x1	;V0=size of bitsample *2	offset between each time it is copied to buffer
+ADDU	V1,V1,V0	;add to 801032B0 table's offset
+SRLV	V0,A2,S3	;bitsample + size of bitsample >> [A]	kill it after 0x400
+BEQ	V0,R0,80013998	;repeat within bank until you hit the end of the buffer
+NOP	
+ADDIU	A3,A3,0001	;A3++
+ADDIU	A1,A1,0004	;800B3134 table+=4	occurance for next entry
+LW	V0,0000 (S0)	;V0=#entries for slot
+ADDIU	A0,A0,0004	;A0+=4	new table+=4
+SLTU	V0,V0,A3
+BEQ	V0,R0,80013984	;loop when next entry is part of same group
+ADDIU	T3,T3,0001	;T3++
+//800139DC:	loop until entire table is filled
+ADDIU	T7,T7,0004	;T7+=4	offset+=4
+ADDIU	T1,T1,0001	;T1++
+SLTU	V0,T1,S3	;T1 should be < buffer size
+BNEZ	V0,8001394C	;loop if it isn't
+ADDIU	T6,T6,0004	;T6+=4	next entry count
+//800139F0:	now to do the remaining entries (8+ or A+ depending on table size)
+SLTIU	V0,T1,0010
+BEQ	V0,R0,80013AA8	;branch if T1>F
+ADDU	S2,T3,R0	;S2=T3=count of entries in first A slots
+ADDIU	S7,R0,0001	;S7=1
+SLLV	V0,S7,S3	;V0=1<<#slots	terminating bit for sample
+ADDIU	S0,V0,FFFF	;S0=1<<#slots -1	mask for bit sample
+SLL	T5,T1,0x2	;T5=#slots->offset
+LUI	S7,8011
+ADDIU	S7,S7,2EE0	;S7=80112EE0
+ADDU	T6,T5,S7	;T6=p->slot A
+LW	V0,0000 (T6)	;V0=# entries
+BEQ	V0,R0,80013A94	;branch if none
+ADDIU	A3,R0,0001	;A3=1
+LUI	V0,8011
+ADDIU	V0,V0,2EE0
+ADDU	T7,T5,V0	;T7=p->slot A
+SLL	V0,T3,0x2	;V0=# entries in first A slots -> offset
+LUI	S7,800B
+ADDIU	S7,S7,283C	;S7=800B283C
+ADDU	T0,V0,S7	;T0=slot# instances for slot A and above
+LUI	S7,800B
+ADDIU	S7,S7,2CB8	;S7=800B2CB8
+ADDU	A0,V0,S7	;A0=bitsample table entries for slot A+
+//80013A4C:
+LW	A2,0000 (A0)	;A2=table entry
+LW	A1,0000 (T0)	;A1=slot# instance	f/ 800B283C table
+AND	V1,A2,S0	;V1=bitsample & sample mask	must fit in pocket
+LUI	V0,8011
+ADDU	V0,V0,V1
+LBU	V0,8FA0 (V0)	;V0=80108FA0+bitsample: 
+SLTU	V0,V0,A1	;TRUE if value < slot#
+BEQ	V0,R0,80013A7C	;branch if value > slot#
+ADDIU	A3,A3,0001	;A3++
+LUI	AT,8011
+ADDU	AT,AT,V1
+SB	A1,8FA0 (AT)	;save slot# instance to 80108FA0+bitsample
+//80013A7C:
+ADDIU	T0,T0,0004	;next slot# occurance
+LW	V0,0000 (T7)	;V0=#slot entries for current slot (A+)
+ADDIU	A0,A0,0004	;next entry in new table
+SLTU	V0,V0,A3
+BEQ	V0,R0,80013A4C	;branch if count matches # entries for this slot
+ADDIU	T3,T3,0001	;T3++	#entries in previous slots + this one
+//80013A94:	loop for remaining slots B-F
+ADDIU	T5,T5,0004	;T5+=4	next slot in #slot entries table
+ADDIU	T1,T1,0001	;T1++
+SLTIU	V0,T1,0010
+BNEZ	V0,80013A18	;keep going while there's more slots to check
+ADDIU	T6,T6,0004
+//80013AA8:	
+ADDU	A2,R0,R0	;A2=0
+ADDU	A3,R0,R0	;A3=0
+ADDIU	T0,R0,FFF8	;T0=-8
+LUI	A0,8011
+ADDIU	A0,A0,8FA0	;A0=80108FA0: 
+LW	A1,000C (SP)	;A1=buffer[801032B0] f/ stack
+//80013AC0:	go through list of stuff you just made
+LBU	V1,0000 (A0)	;byte from 80108FA0
+ANDI	V0,V1,00FF	;V0=only one byte
+BEQ	V0,R0,80013B0C	;don't bother if 0
+SUBU	V0,V0,S3	;V0=value-A
+SLTIU	V0,V0,0008
+BNEZ	V0,80013AE8	;branch if it isn't between A-F
+SLL	V0,A2,0x7	;V0=A2*0x80
+//80013ADC:	in the case the value doesn't fall in the valid range...
+LW	S7,0004 (SP)	;S7=root pointer
+J	80013F48	;quit with an error
+SW	T0,001C (S7)	;-8->error flags
+//80013AE8:	the other entries get translated now as well
+SUBU	V1,V1,S3	;V1=value-A (0-7)
+SLL	V1,V1,0x4	;V1*=0x10
+ADDU	V0,V0,V1	;V0= 0x10(value-A) + (A2*0x80)
+SH	V0,0000 (A1)	;save to [801032B0] slot
+LBU	V0,0000 (A0)	;V0=byte from 80108FA0
+ADDIU	S7,R0,0001	;S7=1
+SUBU	V0,V0,S3	;V0=value-A
+SLLV	V0,S7,V0	;V0=1<<(value-A)
+ADDU	A2,A2,V0	;add to A2 counter	(#bits total in these other samples)
+//80013B0C:
+ADDIU	A0,A0,0001	;next byte in 80108FA0
+ADDIU	A3,A3,0001	;A3++
+SRLV	V0,A3,S3	;V0=A3>>[A], or in other words A3/400
+BEQ	V0,R0,80013AC0
+ADDIU	A1,A1,0002	;A1=next short in [801032B0] table
+//80013B20:
+SLTIU	V0,A2,0200	;A2 (total #bits) should be less than 0x200
+BNEZ	V0,80013B3C
+ADDU	T1,S3,R0	;T1=S3=[A]
+LW	S7,0004 (SP)	;S7=root pointer
+ADDIU	V0,R0,FFF7
+J	80013F48	;quit with error
+SW	V0,001C (S7)	;-9->error flags
+//80013B3C:
+SLTIU	V0,T1,0010
+BEQ	V0,R0,80013C58	;branch if S3 (T1) >0x10, which it shouldn't be
+ADDU	T3,S2,R0	;T3=S2=count of total entries
+ADDIU	S7,R0,0001	;S7=1
+SLLV	S6,S7,T1	;S6=1<<[A]	buffer size
+ADDIU	S7,S6,FFFF	;S7=1<<[A] -1	mask for entries that fall in buffer
+SW	S7,002C (SP)	;SP+2C	save 1<<[A] -1 (3FF)
+SLL	T9,T1,0x2	;T9=[A]->offset
+LUI	S7,8011
+ADDIU	S7,S7,2EE0	;S7=80102EE0
+ADDU	S2,T9,S7	;S2=p-># entries in slot A
+//80013B68:	loop for each slot, retrieving slot entries and all
+LW	V0,0000 (S2)	;V0=#slot A entries
+BEQ	V0,R0,80013C44	;skip if there aren't any
+ADDIU	A3,R0,0001	;A3=1
+LUI	V0,8011
+ADDIU	V0,V0,2EE0	;V0=80102EE0
+ADDU	S5,T9,V0	;S5=p-># entries in slot A
+SLL	V0,T3,0x2	;V0=count of total entries * 4
+LUI	S7,800B
+ADDIU	S7,S7,283C	;S7=800B283C
+ADDU	T8,V0,S7	;T8=800B283C+offset to slot number instance
+LUI	S7,800B
+ADDIU	S7,S7,3134	;S7=800B3134
+ADDU	T7,V0,S7	;T7=800B3134+offset to occurance entries
+LUI	S7,800B
+ADDIU	S7,S7,2CB8	;S7=800B2CB8
+ADDU	T5,V0,S7	;T5=800B2CB8+offset to bitsample table
+//80013BA8:	loop for all entries in the slot
+LW	A2,0000 (T5)	;A2=value from bitsample table
+LW	S7,002C (SP)	;S7=1<<[A] -1	mask for buffer entries
+AND	V0,A2,S7	;V0=value stuffed into confines of total table size
+LW	S7,000C (SP)	;S7=[801032B0]	buffer of short values
+ADDU	S0,T7,R0	;S0=T7=800B3134+offset to occurance entries
+SLL	V0,V0,0x1	;V0*=2	value->offset in short table
+ADDU	V0,V0,S7	;V0=p->entry in short value table
+LHU	V1,0000 (V0)	;V1=short
+ADDU	T0,T8,R0	;T0=T8=800B283C+offset to slot number instance
+SRLV	A1,A2,S3	;A1=value from bitsample table>>[A]
+SRL	V0,V1,0x7	;V0=short/0x80	occurance of thingy in list
+ADDU	V0,V0,S6	;V0=occurance point+1<<[A]
+SLL	V0,V0,0x1	;V0*=2	(occurance point+buffer size)->offset
+ADDU	T6,S7,V0	;T6=buffer + offset
+SRL	V1,V1,0x4	;V1=short/0x10
+ANDI	A2,V1,0007	;A2=(short/0x10) & 7	[A-F or 8-F]
+SLL	V1,A1,0x1	;V1=(value from bitsample table>>[A])*2
+//80013BEC:
+LW	V0,0000 (S0)	;V0=occurance entry
+LW	A0,0000 (T0)	;A0=slot number instance table entry
+ADDU	V1,V1,T6	;V1=short value buffer + offset + offset from bitsample table
+SLL	V0,V0,0x7	;occurance entry * 0x80
+ADDU	V0,V0,A0	;V0=occurance entry * 0x80 + slot number instance table entry
+SH	V0,0000 (V1)	;save to short value buffer
+LW	V0,0000 (T0)	;V0=slot number instance table entry
+ADDIU	S7,R0,0001	;S7=1
+SUBU	V0,V0,S3	;V0=entry-[A]
+SLLV	V0,S7,V0	;V0=1<<(entry-[A])
+ADDU	A1,A1,V0	;A1=(bitsample>>[A]) + (1<<(entry-[A]))
+SRLV	V0,A1,A2	;V0=A1>>((short/0x10) & 7)
+BEQL	V0,R0,80013BEC	;can this occur?  V0 can't be less than 1, so unless A1 was negative it must be > 0
+SLL	V1,A1,0x1
+ADDIU	A3,A3,0001	;A3++
+ADDIU	T8,T8,0004	;T8+=4	next slot # instance
+ADDIU	T7,T7,0004	;T7+=4	next occurance entry
+LW	V0,0000 (S5)	;V0=#entries in slot
+ADDIU	T5,T5,0004	;T5+=4	next value in newtable
+SLTU	V0,V0,A3
+BEQ	V0,R0,80013BA8	;keep going while there are more entries in the slot
+ADDIU	T3,T3,0001	;T3++	count of total entries ++
+//80013C44:
+ADDIU	T9,T9,0004	;T9+=4	offset to next #slot value
+ADDIU	T1,T1,0001	;T1++	next slot#
+SLTIU	V0,T1,0010
+BNEZ	V0,80013B68	;keep going while there are more slots to check
+ADDIU	S2,S2,0004	;S2+=4	p->#slot entries for next
+//80013C58:	if small buffer isn't filled, go back and do it too
+LW	S7,0014 (SP)	;S7=buffer type-1
+BGEZ	S7,8001360C	;branch if the buffer is larger type, so you get to fill the smaller ;*)
+NOP	
+LUI	T0,8010	;buffer 0 (0x100)
+ADDIU	T0,T0,32B0	;T0=801032B0: buffer of short values
+ADDIU	T6,T0,0800	;T6=80103AB0: probably end of buffer
+LUI	A3,8011
+ADDIU	A3,A3,8970	;A3=80108970: other smaller buffer
+ADDIU	T5,A3,0200	;T5=80108B70: end of it
+LUI	T3,800B
+ADDIU	T3,T3,27E0	;T3=800B27E0: 
+//80013C84:	get enough bits for next copy/write thing
+SLTI	V0,T4,000F	;TRUE if bitcount < 0xF
+BEQ	V0,R0,80013C98
+SLLV	V0,S4,T4	;V0=next datatable gets pushed over a few bits
+J	80013C9C
+ADDU	V1,T2,V0	;V1=combined datatable
+//80013C98:
+ADDU	V1,T2,R0	;V1=datatable
+//80013C9C:
+ANDI	V0,V1,03FF	;V0=next 10 (0xA) bits
+SLL	V0,V0,0x1	;V0=next bits *2
+ADDU	V0,V0,T0	;V0=801032B0 big buffer + offset
+LHU	T1,0000 (V0)	;load short from large buffer
+ANDI	V0,T1,000F	;V0=last four bits of short	#bits in normal entry
+BNEL	V0,R0,80013CF0	;branch if not zero (normal entry, not other ones)
+SUBU	T4,T4,V0	;bitcount-=value
+//80013CB8:	test for a register entry (10+)
+SRL	A0,T1,0x7	;A0=roll short around 7 bits (short's data)
+SRL	V1,V1,0xA	;V1=datatable rolled around A bits
+SRL	V0,T1,0x4	;V0=short skipping over first #bits
+ANDI	V0,V0,0007	;V0=#bits in special entry
+ADDIU	S7,R0,0001	;S7=1
+SLLV	V0,S7,V0	;V0=1<<#bits
+ADDIU	V0,V0,FFFF	;V0=mask for #bits
+AND	V1,V1,V0	;V1=next # bits from datatable
+ADDU	V1,V1,A0	;V1=occurance+bits
+SLL	V1,V1,0x1	;V1*=2	to offset
+ADDU	V1,V1,T6	;V1=offset from end of large buffer?
+LHU	T1,0000 (V1)	;T1=value there
+ANDI	V0,T1,000F	;V0=#bits
+SUBU	T4,T4,V0	;bitcount-=value
+//80013CF0:	combine datawords if there aren't enough bits
+BGEZ	T4,80013D10	;branch if more bits left
+SRLV	T2,T2,V0	;roll datatable around that many bits
+ADDU	T2,S4,R0
+LW	S4,0000 (S1)
+ADDIU	S1,S1,0004
+SUBU	V0,R0,T4
+SRLV	T2,T2,V0
+ADDIU	T4,T4,0020
+//80013D10:	write value if short/0x80 < 0x100
+SRL	T1,T1,0x7	;short / 0x80	occurance
+SLTIU	V0,T1,0100
+BEQ	V0,R0,80013D2C	;branch if >0x100	(org. short 80-FF80)
+ADDIU	V0,R0,0100	;V0=0x100
+SB	T1,0000 (S8)	;save value to target
+J	80013C84
+ADDIU	S8,S8,0001	;S8++	target++
+//80013D2C:	test for end of mode1 writes
+BEQL	T1,V0,80013F04	;end of mode1 is T1=0x100	(org. 8000)
+ADDIU	T4,T4,FFFF	;datatable count--
+//80013D34:	copy previously written bytes
+LUI	V1,800B
+ADDU	V1,V1,T1	;in actuality, table begins at 800B27C0
+LBU	V1,26BF (V1)	;V1=800B26BF+offset: 
+BEQ	V1,R0,80013D9C	;if entry=0, just draw from the 800B27A0 table
+ADDU	A2,R0,R0	;A2=0
+SUBU	T4,T4,V1	;datatable count-value
+BGEZ	T4,80013D8C	;branch if more data in datatable
+ADDIU	S7,R0,0001	;S7=1
+ADDU	A2,T2,R0
+ADDU	T2,S4,R0
+LW	S4,0000 (S1)
+ADDIU	S1,S1,0004
+ADDU	V0,T4,V1
+SLLV	V0,T2,V0
+ADDU	V0,A2,V0
+SLLV	V1,S7,V1
+ADDIU	V1,V1,FFFF
+AND	A2,V0,V1
+SUBU	V0,R0,T4
+SRLV	T2,T2,V0
+J	80013D9C
+ADDIU	T4,T4,0020
+//80013D8C:
+SLLV	V0,S7,V1	;V0=1<<value
+ADDIU	V0,V0,FFFF	;V0--
+AND	A2,T2,V0	;A2=that many bits from datatable
+SRLV	T2,T2,V1	;roll datatable around that many bits
+//80013D9C:
+LUI	V0,800B
+ADDU	V0,V0,T1	;in actuality, can't be below 800B27A0
+LBU	V0,269F (V0)	;V0=800B269F+offset: 
+ADDU	V0,V0,A2	;V0+=value from datatable
+ADDIU	T1,V0,0003	;T1=value from datatable+3 (minimum run length)
+SLTI	V0,T4,000F
+BEQ	V0,R0,80013DC4	;branch if at least 15 more bits in datatable
+SLLV	V0,S4,T4	;V0=second datatable word pushed over
+J	80013DC8
+ADDU	V1,T2,V0	;V1=combined datatable word
+//80013DC4:
+ADDU	V1,T2,R0	;V1=datatable word
+//80013DC8:
+ANDI	V0,V1,00FF	;V0=next 8 bits
+SLL	V0,V0,0x1	;V0=next 8 bits *2
+ADDU	V0,V0,A3	;V0=80108970+offset: 
+LHU	A1,0000 (V0)	;short from small table
+ANDI	V0,A1,000F	;first four bits of short
+BNEL	V0,R0,80013E1C	;branch if they aren't zero
+SUBU	T4,T4,V0	;bitcount-#bits
+//80013DE4:	backward entry
+SRL	A0,A1,0x7	;A0=data only from short
+SRL	V1,V1,0x8	;roll COPYdatatable 8 bits
+SRL	V0,A1,0x4	;V0=special #bits
+ANDI	V0,V0,0007	;V0=0-7
+ADDIU	S7,R0,0001
+SLLV	V0,S7,V0	;V0=1<<#bits
+ADDIU	V0,V0,FFFF	;V0=bitmask
+AND	V1,V1,V0	;V1=next V0 bits from COPYdatatable
+ADDU	V1,V1,A0	;V1=value+data from short
+SLL	V1,V1,0x1
+ADDU	V1,V1,T5	;V1=offset f/end of short table (+0x200)
+LHU	A1,0000 (V1)	;A1=new short
+ANDI	V0,A1,000F	;V0=#bits
+SUBU	T4,T4,V0	;datatable count- value
+//80013E1C:	pull that many bits from datatable
+BGEZ	T4,80013E3C	;branch if there's still enough data in datatable
+SRLV	T2,T2,V0	;roll datatable around
+ADDU	T2,S4,R0
+LW	S4,0000 (S1)
+ADDIU	S1,S1,0004
+SUBU	V0,R0,T4
+SRLV	T2,T2,V0
+ADDIU	T4,T4,0020
+//80013E3C:
+SRL	A1,A1,0x7	;A1=short/0x80
+LUI	V1,800B
+ADDU	V1,V1,A1
+LB	V1,281C (V1)	;V1=800B281C+offset: #bits to pull
+BEQ	V1,R0,80013EA8	;don't bother if equal to zero
+ADDU	A2,R0,R0	;A2=0
+SUBU	T4,T4,V1	;T4=datatable count-value
+BGEZ	T4,80013E98	;branch if there's enough data in datatable word
+ADDIU	S7,R0,0001	;S7=1
+ADDU	A2,T2,R0
+ADDU	T2,S4,R0
+LW	S4,0000 (S1)
+ADDIU	S1,S1,0004
+ADDU	V0,T4,V1
+SLLV	V0,T2,V0
+ADDU	V0,A2,V0
+SLLV	V1,S7,V1
+ADDIU	V1,V1,FFFF
+AND	A2,V0,V1
+SUBU	V0,R0,T4
+SRLV	T2,T2,V0
+J	80013EA8
+ADDIU	T4,T4,0020
+//80013E98:	retrieve #bits
+SLLV	V0,S7,V1	;V0=1<<#bits
+ADDIU	V0,V0,FFFF	;V0--	(largest possible value=1FF)
+AND	A2,T2,V0	;A2=datatable & mask: bits from datatable
+SRLV	T2,T2,V1	;roll datatable around that many bits
+//80013EA8:	backtrack to previously written data
+SLL	V0,A1,0x1	;V0=short/0x80 * 2
+ADDU	V0,V0,T3
+LHU	V0,0000 (V0)	;V0=800B27E0+offset: ?short
+ADDU	A1,V0,A2	;A1=?short+value from datatable
+SUBU	V0,S8,A1	;V0=target-A1
+BNEZ	A1,80013EE0	;branch if A1 isn't zero; more than one character is written
+ADDIU	V1,V0,FFFF	;V1=target-A1-1
+LBU	V0,FFFF (V0)	;V0=byte starting at run
+//80013EC8:	copy a single previously-written byte multiple times
+SB	V0,0000 (S8)	;save to target
+ADDIU	T1,T1,FFFF	;run length--
+BNEZ	T1,80013EC8	;loop while there's still data to pull
+ADDIU	S8,S8,0001	;target++
+J	80013C88
+SLTI	V0,T4,000F	;test if 15bits left in datatable
+//80013EE0:	copy previously written bytes to target
+LBU	V0,0000 (V1)	;V0=byte at run
+ADDIU	V1,V1,0001	;V1++	next byte to pull
+ADDIU	T1,T1,FFFF	;T1--	run length--
+SB	V0,0000 (S8)	;save byte to target
+BNEZ	T1,80013EE0	;loop while there's more to copy
+ADDIU	S8,S8,0001	;target++
+J	80013C88
+SLTI	V0,T4,000F	;test if 15bits left in datatable
+//80013F00:
+ADDIU	T4,T4,FFFF	;datatable count--
+//80013F04:	retrieve next bit: continue if =0, EOF=1
+BGEZ	T4,80013F3C	;branch if more data in datatable
+ANDI	A2,T2,0001	;next bit in datatable
+ADDU	A2,T2,R0
+ADDU	T2,S4,R0
+LW	S4,0000 (S1)
+ADDIU	S1,S1,0004
+ADDIU	V0,T4,0001
+SLLV	V0,T2,V0
+ADDU	V0,A2,V0
+ANDI	A2,V0,0001
+SUBU	V0,R0,T4
+SRLV	T2,T2,V0
+J	80013F40
+ADDIU	T4,T4,0020
+//80013F3C:
+SRL	T2,T2,0x1	;roll datatable 1 bit
+//80013F40:	continue if=0, EOF=1
+BEQ	A2,R0,8001351C	;continue if next bit=0
+ADDIU	T4,T4,FFFF	;datatable count--
+//80013F48:
+LW	S8,0050 (SP)
+LW	S7,004C (SP)
+LW	S6,0048 (SP)
+LW	S5,0044 (SP)
+LW	S4,0040 (SP)
+LW	S3,003C (SP)
+LW	S2,0038 (SP)
+LW	S1,0034 (SP)
+LW	S0,0030 (SP)
+JR	RA
+ADDIU	SP,SP,0058

@@ -1,0 +1,638 @@
+80013F74:	type 2 decompression
+	accepts: A0=p->necessary values saved to stack
+		0x0	4	target address
+		0x4	4	source address
+		0x8	4	compressed size
+		0xC	4	decompressed size
+		0x10	4	compression type
+		0x14	4	system endianess: 1=big endian
+		0x18	4	file endianess: 1=big endian
+		0x1C	4	error flags
+LW	V0,0004 (A0)	;V0=source
+ADDIU	A2,R0,0020	;A2=bitcount
+LW	A0,0000 (A0)	;A0=target
+LW	A1,000C (V0)	;A1=datatable word
+LW	T1,0010 (V0)	;T1=next datatable word
+ADDIU	T0,V0,0014	;T0=p->next datatable word
+//80013F8C:	pull next command from datatable stream
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,80013FC8	;branch if more data in word
+ANDI	V1,A1,0001	;V1=mode flag bit
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80013FCC
+ADDIU	A2,A2,0020
+//80013FC8:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//80013FCC:	mode 0 - direct byte copy to target
+BNEL	V1,R0,80014020	;branch if mode flag set
+ADDIU	A2,A2,FFFF	;bitcount-1
+ADDIU	A2,A2,FFF8	;bitcount-8
+BGEZ	A2,80014010	;branch if more data in datatable
+ANDI	V1,A1,00FF	;V1=next 8 bits of datatable
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0008
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,00FF
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80014014
+ADDIU	A2,A2,0020
+//80014010:
+SRL	A1,A1,0x8	;roll datatable 8 bits
+//80014014:
+SB	V1,0000 (A0)	;store byte to target
+J	80013F8C	;next thingy in stream
+ADDIU	A0,A0,0001	;target++
+//80014020:	mode 1
+BGEZ	A2,80014058	;branch if more data in datatable
+ANDI	V1,A1,0001	;V1=next bit in datatable
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	8001405C
+ADDIU	A2,A2,0020
+//80014058:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//8001405C:	handle bit 1 of data
+BEQ	V1,R0,80014404	;branch if bit=0
+ADDIU	A2,A2,FFFF	;bitcount-1
+//80014064:	bit1=1: get bit 2
+BGEZ	A2,8001409C	;branch if more data in datatable
+ANDI	V1,A1,0001	;get next bit
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	800140A0
+ADDIU	A2,A2,0020
+//8001409C:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//800140A0:	bit1=1 bit2=0 (after test at least)
+BNEL	V1,R0,800140F4	;branch if bit2=1
+ADDIU	A2,A2,FFFF	;bitcount-1
+ADDIU	A2,A2,FFF8	;bitcount-8
+BGEZ	A2,800140E4	;branch if more data in datatable
+ADDIU	T2,R0,0002	;T2=2: # bytes to copy
+ADDU	A3,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0008
+SLLV	V0,A1,V0
+ADDU	V0,A3,V0
+ANDI	A3,V0,00FF
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	800140EC
+ADDIU	A2,A2,0020
+//800140E4:
+ANDI	A3,A1,00FF	;A3=next byte from datatable
+SRL	A1,A1,0x8	;roll datatable 8 bits
+//800140EC:
+J	800143D0	;copy from source to target
+ADDIU	A3,A3,0001	;A3=byte+1
+//800140F4:	bit1=1 bit2=1: get bit 3
+BGEZ	A2,8001412C	;branch if more data in datatable
+ANDI	V1,A1,0001	;V1=bit3
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80014130
+ADDIU	A2,A2,0020
+//8001412C:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//80014130:	bit1:1 bit2:1 bit3:0
+BNEL	V1,R0,80014140	;branch if bit3=1
+ADDIU	A2,A2,FFF8	;bitcount-8
+J	80014184
+ADDIU	T2,R0,0003	;T2=3: # bytes to copy
+//80014140:	bit1:1 bit2:1 bit3:1
+BGEZ	A2,80014178	;branch if more data in datatable
+ANDI	T2,A1,00FF	;T2=next byte(8bits) in datatable: # bytes to copy
+ADDU	T2,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0008
+SLLV	V0,A1,V0
+ADDU	V0,T2,V0
+ANDI	T2,V0,00FF
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	8001417C
+ADDIU	A2,A2,0020
+//80014178:
+SRL	A1,A1,0x8	;roll datatable 8 bits
+//8001417C:
+BEQ	T2,R0,80014810	;quit if 0 bytes to copy
+ADDIU	T2,T2,0008	;T2+=8: # bytes to copy
+//80014184:	do something with this
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,800141C0	;branch if more data in datatable
+ADDU	A3,R0,R0	;A3=0
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	800141C8
+ADDIU	A2,A2,0020
+//800141C0:
+ANDI	V1,A1,0001	;V1=bit4
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//800141C8:	bit1:1 bit2:1 bit4:1
+BEQL	V1,R0,80014388	;branch if bit4=0
+ADDIU	A2,A2,FFF8	;bitcount-8
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,8001420C	;branch if more data in datatable
+ANDI	A3,A1,0001	;A3=bit5
+ADDU	A3,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,A3,V0
+ANDI	A3,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80014210
+ADDIU	A2,A2,0020
+//8001420C:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//80014210:
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,8001424C	;branch if more data in datatable
+ANDI	V1,A1,0001	;V1=bit6
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80014250
+ADDIU	A2,A2,0020
+//8001424C:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//80014250:	bit6=1
+BEQ	V1,R0,80014338	;branch if bit6=0
+NOP	
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,80014294	;branch if more data in datatable
+ANDI	V1,A1,0001	;V1=bit7
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80014298
+ADDIU	A2,A2,0020
+//80014294:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//80014298:
+SLL	V0,A3,0x1	;V0=bit5*2
+ADDU	V0,V0,V1	;V0=bit5.bit7
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,800142DC	;branch if more data in datatable
+ADDIU	A3,V0,0004	;A3=1.bit5.bit7
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	800142E4
+ADDIU	A2,A2,0020
+//800142DC:
+ANDI	V1,A1,0001	;V1=bit8
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//800142E4:	bit8=0
+BNEL	V1,R0,80014388	;branch if bit8=1
+ADDIU	A2,A2,FFF8	;bitcount-8
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,80014328	;branch if more data in datatable
+ANDI	V1,A1,0001	;V1=bit9
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	8001432C
+ADDIU	A2,A2,0020
+//80014328:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//8001432C:
+SLL	V0,A3,0x1	;V0=1.bit5.bit7.0
+J	80014384
+ADDU	A3,V0,V1	;A3=1.bit5.bit7.bit9
+//80014338:	bit5=0
+BNEL	A3,R0,80014388	;branch if bit5=1
+ADDIU	A2,A2,FFF8	;bitcount-8
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,8001437C	;branch if more data in datatable
+ANDI	V1,A1,0001	;V1=bit7
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80014380
+ADDIU	A2,A2,0020
+//8001437C:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//80014380:
+ADDIU	A3,V1,0002	;A3=2+bit7
+ADDIU	A2,A2,FFF8	;bitcount-8
+//80014388:
+BGEZ	A2,800143C0	;branch if more data in datatable
+ANDI	V1,A1,00FF	;V1=next byte
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0008
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,00FF
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	800143C4
+ADDIU	A2,A2,0020
+//800143C0:
+SRL	A1,A1,0x8	;roll datatable 8 bits
+//800143C4:
+SLL	V0,A3,0x8	;V0=A3*0x100
+ADDU	V0,V0,V1	;V0=A3*0x100 + byte
+ADDIU	A3,V0,0001	;A3=(A3*0x100 + byte)+1
+//800143D0:	copy!
+SUBU	A3,A0,A3	;A3=target-# bytes	backtrack # bytes
+ADDU	V0,T2,R0	;V0=#bytes to copy
+BEQ	V0,R0,80013F8C	;if nothing to do go to next command
+ADDIU	T2,T2,FFFF	;T2--	# bytes to copy-1
+//800143E0:	copy from source to target
+LBU	V0,0000 (A3)	;V0=byte from original location
+ADDIU	A3,A3,0001	;A3++	next byte in run
+ADDU	V1,T2,R0	;V1=#bytes to copy
+ADDIU	T2,T2,FFFF	;T2--	# bytes to copy-1
+SB	V0,0000 (A0)	;save byte to target
+BNEZ	V1,800143E0	;branch while there's more to copy
+ADDIU	A0,A0,0001	;target++
+J	80013F90	;next command
+ADDIU	A2,A2,FFFF	;bitcount--
+//80014404:	bit1=0
+BGEZ	A2,8001443C	;branch if more data in datatable
+ANDI	T2,A1,0001	;T2=next bit in datatable
+//8001440C:
+ADDU	T2,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,T2,V0
+ANDI	T2,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80014440
+ADDIU	A2,A2,0020
+//8001443C:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//80014440:
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,8001447C	;branch if more data in datatable
+ADDIU	T2,T2,0004	;T2=next bit in datatable+4
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80014484
+ADDIU	A2,A2,0020
+//8001447C:	get bit 3
+ANDI	V1,A1,0001	;next bit in datatable
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//80014484:	bit1:0 bit3:1
+BEQ	V1,R0,800144DC	;branch if bit3=0
+ADDIU	V0,R0,0009	;V0=9
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,800144C8	;branch if more data in datatable
+ANDI	V1,A1,0001	;next bit in datatable
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	800144CC
+ADDIU	A2,A2,0020
+//800144C8:	handle bit4
+SRL	A1,A1,0x1	;roll datatable 1 bit
+ADDIU	V0,T2,FFFF	;V0=#bytes to copy-1 (4 or 3)
+SLL	V0,V0,0x1	;V0*=2	(8 or 6)
+ADDU	T2,V0,V1	;T2=bit+(8 or 6)
+ADDIU	V0,R0,0009
+//800144DC:	test if bytes to copy <9
+BNEL	T2,V0,80014594	;branch if #bytes to copy !=9
+ADDIU	A2,A2,FFFF	;bitcount-1
+//800144E4:	#bytes to copy=9
+ADDIU	A2,A2,FFFC	;bitcount-4
+BGEZ	A2,80014520	;branch if more data in datatable
+ANDI	T2,A1,000F	;T2=next nibble (4bits) from datatable
+ADDU	T2,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0004
+SLLV	V0,A1,V0
+ADDU	V0,T2,V0
+ANDI	T2,V0,000F
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80014524
+ADDIU	A2,A2,0020
+//80014520:
+SRL	A1,A1,0x4	;roll datatable 4 bits
+//80014524:	bits 2,3,4 set - use next nibble
+SLL	V0,T2,0x2	;V0=nibble * 4
+ADDIU	T2,V0,000B	;T2=(nibble * 4)+B
+ADDIU	V0,V0,000C	;V0=(nibble * 4)+C
+BEQL	V0,R0,80013F90	;how can this = 0?  skip copying if for some reason it is
+ADDIU	A2,A2,FFFF	;bitcount-1
+//80014538:	loop to copy each byte to target
+ADDIU	A2,A2,FFF8	;bitcount-8
+BGEZ	A2,80014574	;branch if more data in datatable
+ANDI	V1,A1,00FF	;V1=next byte from datatable
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0008
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,00FF
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80014578
+ADDIU	A2,A2,0020
+//80014574:
+SRL	A1,A1,0x8	;roll datatable 8 bits
+//80014578:	save data to target
+SB	V1,0000 (A0)	;save byte to target
+ADDIU	A0,A0,0001	;target++
+ADDU	V0,T2,R0	;V0=T2=#bytes to copy
+BNEZ	V0,80014538	;branch if more bytes to pull
+ADDIU	T2,T2,FFFF	;#bytes --
+J	80013F90	;next command!
+ADDIU	A2,A2,FFFF	;bitcount--
+//80014594:
+BGEZ	A2,800145CC	;branch if more data in datatable
+ADDU	A3,R0,R0	;A3=0
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	800145D4
+ADDIU	A2,A2,0020
+//800145CC:
+ANDI	V1,A1,0001	;V1=next bit of data
+SRL	A1,A1,0x1	;next bit in datatable
+//800145D4:	next bit=1
+BEQL	V1,R0,80014794	;branch if bit=0
+ADDIU	A2,A2,FFF8	;A2-8
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,80014618	;branch if more data in datatable
+ANDI	A3,A1,0001	;A3=next2 bit in datatable
+ADDU	A3,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,A3,V0
+ANDI	A3,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	8001461C
+ADDIU	A2,A2,0020
+//80014618:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//8001461C:	get next3
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,80014658	;branch if more data in datatable
+ANDI	V1,A1,0001	;V1=next3
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	8001465C
+ADDIU	A2,A2,0020
+//80014658:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//8001465C:	next3=1
+BEQ	V1,R0,80014744	;branch if next3=0
+NOP	
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,800146A0	;branch if more data in datatable
+ANDI	V1,A1,0001	;V1=next4
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	800146A4
+ADDIU	A2,A2,0020
+//800146A0:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//800146A4:	
+SLL	V0,A3,0x1	;V0=next2<<1
+ADDU	V0,V0,V1	;V0=next2.next4
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,800146E8	;branch if more data in datatable
+ADDIU	A3,V0,0004	;A3=1.next2.next4
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	800146F0
+ADDIU	A2,A2,0020
+//800146E8:
+ANDI	V1,A1,0001	;V1=next5
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//800146F0:	next5=0
+BNEL	V1,R0,80014794	;branch if next5=1
+ADDIU	A2,A2,FFF8
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,80014734	;branch if more data in datatable
+ANDI	V1,A1,0001	;V1=next6
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	80014738
+ADDIU	A2,A2,0020
+//80014734:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//80014738:
+SLL	V0,A3,0x1	;V0=next2*2
+J	80014790
+ADDU	A3,V0,V1	;A3=next2.next6
+//80014744:	next2=0
+BNEL	A3,R0,80014794	;branch if next2=1
+ADDIU	A2,A2,FFF8
+ADDIU	A2,A2,FFFF	;bitcount-1
+BGEZ	A2,80014788	;branch if more data in datatable
+ANDI	V1,A1,0001	;V1=next4
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0001
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,0001
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	8001478C
+ADDIU	A2,A2,0020
+//80014788:
+SRL	A1,A1,0x1	;roll datatable 1 bit
+//8001478C:
+ADDIU	A3,V1,0002	;backward=2+next4
+ADDIU	A2,A2,FFF8	;bitcount-8
+//80014794:	
+BGEZ	A2,800147CC	;branch if more data in datatable
+ANDI	V1,A1,00FF	;V1=next byte (8bits)
+ADDU	V1,A1,R0
+ADDU	A1,T1,R0
+LW	T1,0000 (T0)
+ADDIU	T0,T0,0004
+ADDIU	V0,A2,0008
+SLLV	V0,A1,V0
+ADDU	V0,V1,V0
+ANDI	V1,V0,00FF
+SUBU	V0,R0,A2
+SRLV	A1,A1,V0
+J	800147D0
+ADDIU	A2,A2,0020
+//800147CC:
+SRL	A1,A1,0x8	;roll datatable 8 bits
+//800147D0:	copy a byte from previously-written data
+SLL	V0,A3,0x8	;V0=stored A3 value * 0x100
+ADDU	V0,V0,V1	;V0=(A3*0x100)+byte
+ADDIU	A3,V0,0001	;A3=V0+1
+SUBU	A3,A0,A3	;A3= target-(V0+1)
+ADDU	V0,T2,R0	;V0=T2=probably # bytes to copy
+BEQ	V0,R0,80013F8C	;if zer0, go to next command
+ADDIU	T2,T2,FFFF	;T2--
+//800147EC:	copy previous string to target
+LBU	V0,0000 (A3)	;V0=byte from a previous write
+ADDIU	A3,A3,0001	;A3++	(next byte in run)
+ADDU	V1,T2,R0	;V1=T2=# bytes left to copy
+ADDIU	T2,T2,FFFF	;T2--
+SB	V0,0000 (A0)	;save byte to target
+BNEZ	V1,800147EC	;loop for the rest of the bytes in run
+ADDIU	A0,A0,0001	;A0++	next target
+J	80013F90	;next command!
+ADDIU	A2,A2,FFFF	;bitcount-1
+//80014810:
+JR	RA
+NOP	

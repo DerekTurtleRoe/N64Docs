@@ -1,0 +1,51 @@
+80013430	type 0 decompression: 'store' (uncompressed data)
+	accepts: A0=p->necessary values saved to stack
+		0x0	4	target address
+		0x4	4	source address
+		0x8	4	compressed size
+		0xC	4	decompressed size
+		0x10	4	compression type
+		0x14	4	system endianess: 1=big endian
+		0x18	4	file endianess: 1=big endian
+		0x1C	4	error flags
+LW	V0,0004 (A0)	;V0=source
+LW	A2,0000 (A0)	;A2=target
+LW	A0,000C (A0)	;A0=decompressed size
+ADDIU	A1,V0,000C	;A1=source+C	p->data
+SLTU	V0,A1,A2	;TRUE if p->data<target
+BEQ	V0,R0,80013458	;branch if data doesn't overlap target
+ADDU	V0,A1,A0	;V0=source+C + decompressed size
+SLTU	V0,A2,V0	;TRUE if p->target < p->end of data
+BNEZ	V0,80013488	;branch if TRUE
+ADDIU	V0,A0,FFFF	;V0=decompressed size-1
+//80013458:	quit if no data left
+ADDU	V0,A0,R0	;V0=A0=decompressed size
+BEQ	V0,R0,800134B8	;quit if decompressed size zero
+ADDIU	A0,A0,FFFF	;decompressed size--
+//80013464:	loop to copy data
+LBU	V0,0000 (A1)	;V0=data
+ADDIU	A1,A1,0001	;data pointer ++
+ADDU	V1,A0,R0	;V1=A0=decompressed size
+ADDIU	A0,A0,FFFF	;decompressed size--
+SB	V0,0000 (A2)	;save byte to target
+BNEZ	V1,80013464	;loop until no data left
+ADDIU	A2,A2,0001	;target pointer ++
+J	800134B8	;quit
+NOP
+//80013488:	p->target < p->end of data
+ADDU	A2,A2,V0	;A2=target + decompressed size-1	end of target copy region
+ADDU	A1,A1,V0	;A1=data + decompressed size-1	end of data
+ADDU	V1,A0,R0	;V1=A0=decompressed size
+BEQ	V1,R0,800134B8	;quit if size=0
+ADDU	A0,V0,R0	;A0=V0=decompressed size -1
+//8001349C:
+LBU	V0,0000 (A1)	;V0=byte from end of data
+ADDIU	A1,A1,FFFF	;A1=end of data --
+ADDU	V1,A0,R0	;V1=A0=remaining data
+ADDIU	A0,A0,FFFF	;A0=remaining data-1
+SB	V0,0000 (A2)	;save byte to end of target
+BNEZ	V1,8001349C	;branch until done copying
+ADDIU	A2,A2,FFFF	;end of target--
+//800134B8:
+JR	RA
+NOP

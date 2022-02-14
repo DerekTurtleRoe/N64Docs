@@ -1,0 +1,6 @@
+The RDP opcode "Sync Load" is always stated as hex command "0x31" in the docs but the command portion is actually "0x26" on retail HW.
+
+-------------------------------------------------------------------------------------------
+
+Extra RDP "How To Triangle" help by by GreaseMonkey:
+https://forums.cen64.com/viewtopic.php?f=14&t=237

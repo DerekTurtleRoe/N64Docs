@@ -1,0 +1,67 @@
+I have some preliminary information on the VRU that shipped with Hey You,
+Pikachu!  I have hit a stumbling block as I don't have a way to sniff the
+wire and Mess does not currently emulate Hey You, Pikachu! correctly so I
+can't trade back and forth comparing query captures in Mess to real
+hardware responses on target.  However, from the small amount that runs in
+Mess, I was able to figure out some very rudimentary things and can
+reliably detect a VRU plugged in using the detect accessory commands in
+libdragon.
+
+How to identify a VRU plugged into a controller slot:
+
+The VRU will not respond to normal controller commands (0x01).  Attempting
+to do so will set the error bit in the command response.  The VRU does
+respond to the status command (0x00).  To identify a VRU, request status to
+the serial interface as you normally would.  The command returns three
+bytes and the last two bytes are normally 0x0001 for accessory present
+(mempak, rumblepak, transferpak) or 0x0002 for not inserted.  The VRU will
+return 0x0100.  The first byte is normally 0x05 which identifies the type
+of controller.  On the VRU, it appears as 0x00.  This might be another
+reliable way to determine a VRU as I am unaware of other numbers in this
+location.
+
+VRU commands:
+
+The VRU appears to have four new commands that it supports: 0x0a, 0x0b,
+0x0c and 0x0d.  None of these commands are understood at this point to my
+knowledge, but 0x0b and 0x0d appear to be initialization or configuration
+commands.  I watched Hey You, Pikachu! booting in mess and captured the
+queries it thought it was sending to the SI and replayed them on hardware
+to get responses but they weren't enlightening (to me at least).
+
+The 0x0a command sends 16 bytes to the controller and expects 1 byte in
+return.
+The 0x0b command sends 2 bytes to the controller and expects 3 bytes in
+return.
+The 0x0c command sends 6 bytes to the controller and expects 1 byte in
+return.
+The 0x0d command sends 2 bytes to the controller and expects 1 byte in
+return.
+
+The initialization sequence I observed through mess was as follows:
+
+0x0b, sent 0x0000, received 0x010097
+0x0d, sent 0x1e0c, received 0x00
+0x0c, sent 0x000000000100, received 0x97
+0x0b, sent 0x0000, received 0x010097
+0x0c, sent 0x000002003b00, received 0xf9
+0x0b, sent 0x0000, received 0x000000
+0x0a, sent all zeros, recieved 0x00
+
+If the first 0x0b returns error (no controller present), the game will
+continuously issue this command.  Similarly, if the 0x0b command succeeds
+and the 0x0d command fails due to no controller, the game will go back to
+0x0b and try again.  I have tried issuing these commands on hardware and
+the responses always match.  It doesn't appear that the N64 has any
+capability to tell if there is a mic plugged in or not as none of these
+bits change, but maybe later in the initialization sequence it says
+something.
+
+Now what?
+
+Mess seems not to run the game as it chooses a bit depth of 0.  I stubbed
+that out to just not draw and it got as far as capturing these commands,
+but no further which is a pity.  If somebody has a LA and can watch the
+protocol in action then perhaps further progress can be made.  Also, maybe
+if I get an arduino or a pic I can set up a sniffer that can record packets
+I'm interested in.

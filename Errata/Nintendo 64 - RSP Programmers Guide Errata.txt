@@ -1,0 +1,67 @@
+VMOV is incorrectly documented:
+The source index is not an element number, it uses the same indexing scheme as vector ops
+
+Use my Transpose Matrix VMOV demo here to make sure you have implemented VMOV correctly:
+https://github.com/PeterLemon/N64/tree/master/RSPTest/CP2/LOADSTORE/TransposeMatrixVMOV
+
+cen64 has a working VMOV implementation
+
+PSI
+Question: I don't really get how VMOV is supposed to work...
+krom's RSP errata docs say it should use the same scheme as vector ops
+ 
+Aphex Twin
+Answer: the low accumulator is set to vt
+and the chosen element of vd is set to the chosen element of vt
+ 
+Aphex Twin
+src = switch (e) {
+    case 0..1: de & 0x7
+    case 2..3: (e & 0x1) | (de & 0x6)
+    case 4..7: (e & 0x3) | (de & 0x4)
+    case 8..15: e & 0x7
+}
+
+vector[vd][de & 0x7] = vector[vt][src]
+accum_lo = vector[vt]
+
+-------------------------------------------------------------------------------------------
+
+VSAR is incorrectly documented:
+It says VSAR writes to the accumulator & it does not.
+
+-------------------------------------------------------------------------------------------
+
+@krom you're collecting n64 errata right?
+Not sure this counts but a lot of sources seem to indicate that the CIC on the cart sources the 1.9MHz clock on pin 19 to the PIF,
+rather than the other way around (which is correct)
+
+krom
+ah nice one, I'll add that...
+ 
+awygle
+I should mention my source for the claim that the PIF sources it is "stuck an oscilloscope into my n64" so my confidence is high
+ 
+krom
+ah heh!
+
+-------------------------------------------------------------------------------------------
+
+SWV - Ultra64 documentation says 0x07 for opcode, it should be 0x0A
+
+-------------------------------------------------------------------------------------------
+
+Extra RSP help from Rasky:
+https://github.com/rasky/r64emu/blob/master/doc/rsp.md
+
+-------------------------------------------------------------------------------------------
+
+VRSQ is documented as copying VT to ACC_L, but it actually copies VT[e] to ACC_L
+
+-------------------------------------------------------------------------------------------
+
+Mazamars312
+I have found another error in the n64 rsp documents with the vmacq opcode.
+So when it tests for zero it only does it on the acc[47:21] bits only. Not the whole number. The cheat sheet in it says the whole number is tested
+
+-------------------------------------------------------------------------------------------

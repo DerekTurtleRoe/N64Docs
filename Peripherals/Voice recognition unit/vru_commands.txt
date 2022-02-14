@@ -1,0 +1,240 @@
+read 0x25 bytes of data from VRU addy
+03.25.09xxxx.ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddcc
+	send:
+	x	combination of value and address checksum
+		FFE0	address
+		001F	checksum
+	recieve:
+	d	data (0x24)
+		data is 16bit byteswapped
+	c	data checksum for d
+		set to 0xFF on send
+
+	data breakdown:
+	0	4	unknown; J VRU always seems to report 80000F00
+	4	2	error flags
+	6	2	# valid results (?)
+	8	2	voice level from mic
+	A	2	relative voice level
+	C	2	voice length (prob. milliseconds)
+	E	2	hit 1: index or 0x7FFF
+	10	2	hit 1: deviance value
+	12	2	hit 2: index or 0x7FFF
+	14	2	hit 2: deviance value
+	16	2	hit 3: index or 0x7FFF
+	18	2	hit 3: deviance value
+	1A	2	hit 4: index or 0x7FFF
+	1C	2	hit 4: deviance value
+	1E	2	hit 5: index or 0x7FFF
+	20	2	hit 5: deviance value
+	22	2	mode + status flags
+	23	1	data checksum
+
+	error flags appear to be (byteswapped):
+	0400	voice too low; any voice level below 0x96(?) appears to trigger this
+	0800	voice too high; any voice level over 0xDAC(?) appears to trigger this
+	4000	no valid matches; I think this means the deviation for all results is greater than the default 0x640 seen in software, since can report match results anyway.
+	8000	too much noise; relative voice level below 0x190(?) appears to trigger this
+
+  Example results: 03.25.090000.80000F0000000100F3037609600400004B0303000204070079040400C904FF7F2907400098
+
+write 0x14 bytes of data to VRU addy
+17.01.0Axxxxdddddddddddddddddddddddddddddddddddddddd.cc
+	send:
+	x	combination of value and address checksum
+		FFE0	address
+		001F	checksum
+	d	data (0x14)
+		data should be 16bit byteswapped, aligned right (so NULLs to the left but strings reading left->right, byteswapped.)
+	recieve:
+	c	data checksum for d
+		set to 0xFF on send
+
+	J str data pattern is:
+	----0300 0000dddd dddddddd dddddddd dddddddd dddddddd dddddddd dddddddd dddddddd ddddff00
+	Max length to send is 0x20, aligned to right side of buffer (0x26 - len(data)) and preceeded by 3.  Data is 16bit LE.  Flag indicates status after sending command.  There must be a NULL between the 0003 cmd and the string.
+	Regardless, address always appears to be 0.
+
+	Except for ー only Katakana and Hiragana may be used.
+	Invalid as first char: ーんっゎンッヮヵヶ
+	ぁ can only follow ふフヴ
+	ァ can only follow ふフヴ
+	ぃ can only follow うてでふウテデフヴ
+	ィ can only follow うてでふウテデフヴ
+	ぅ can only follow とどふトドフヴ
+	ゥ can only follow とどふトドフヴ
+	ぇ can only follow うしえちぢつふウシジチヂツフヴ
+	ェ can only follow うしえちぢつふウシジチヂツフヴ
+	ぉ can only follow うふウフヴ
+	ォ can only follow うふウフヴ
+	ゃ can only follow きしちにひみりぎじぢびぴキシチニヒミリギジヂビピヴ
+	ゅ can only follow きしちにひみりぎじぢびぴキシチニヒミリギジヂビピヴ
+	ょ can only follow きしちにひみりぎじぢびぴキシチニヒミリギジヂビピヴ
+	ャ can only follow きしちにひみりぎじぢびぴキシチニヒミリギジヂビピヴ
+	ュ can only follow きしちにひみりぎじぢびぴキシチニヒミリギジヂビピヴ
+	ョ can only follow きしちにひみりぎじぢびぴキシチニヒミリギジヂビピヴ
+	ー cannot follow きっンッ
+	ん and ン cannot repeat (んん or ンン)
+	っ can only follow ーあいうえおなにぬねのまみむめもやゆよらりるれろわゐゑをんぁぃぅぇぉゃゅょっゎアイウエオナニヌネノマミムメモヤユヨラリルレロワヰヱヲンァィゥェォャュョッヮ
+	ッ can only follow ーあいうえおなにぬねのまみむめもやゆよらりるれろわゐゑをんぁぃぅぇぉゃゅょっゎアイウエオナニヌネノマミムメモヤユヨラリルレロワヰヱヲンァィゥェォャュョッヮ
+	Example: 17.01.0A00000000000000000000000003000000E482AB820000.08
+
+  Also used to send the string mask patterns.  Data is right-aligned and padded with zeroes to an even length, followed with command 0004.  Set bits allow strings, unset ignores.
+  Example sending 0x66: 17.01.0A00000000000000000000000000000000000004006600.31
+
+read 2 bytes from VRU addy: read mode and status
+03.03.0Bxxxx.ddddcc
+	send:
+	x	combination of value and address checksum
+		FFE0	address
+		001F	checksum
+	recieve:
+	d	VRU status & mode
+		FF00	???; returns error 5 when set
+		0200	???; returns error 0xE or 5 when set (same error as bad wchar)
+		0100	???; returns error 0xD or 5 when set
+		0040	???; returns error 0xF when set
+		0007	mode
+	c	data checksum for d
+		set to 0xFF on send
+
+write 4 bytes to VRU addy: send mode, status, and argument
+07.01.0Cxxxxdddddddd.cc
+	send:
+	x	combination of value and address checksum
+		FFE0	address
+		001F	checksum
+	d	mode & argument  (4 bytes, byteswapped)
+		0007 0000	mode
+		0000 FFFF	argument
+	recieve:
+	c	data checksum for d
+		set to 0xFF on send
+
+  Address always appears to be 0.
+
+Initialize VRU hardware at address
+03.01.0Dxxxx.ff
+	send:
+	x	combination of value and address checksum
+		FFE0	address
+		001F	checksum
+	recieve:
+	f	error flags
+		set to 0 on send
+
+	Note they use a table of address: (0xF0, 0x370, 0x40, 0x2B0, 0x18); saved internally as (1E, 6E, 08, 56, 03) to avoid bitshifting.
+	Each is sent in-sequence, assuming nothing goes wrong.
+
+Device type reports 0100.  Controller pak Inserted/Not Present appear to be set by the device at various points.
+
+Step 1: detect if a VRU is attached
+	send SI Status commands.  Device type is 0x100.
+	reinit software flags
+	On initial connect:
+		check status
+			send SI Status cmd
+			return Err 1 after four retests if Not Present flag
+			return Err 0xB after four retests if not a VRU (device type != 0x100)
+			return Err 4 if IO Error flag
+			return Err 4 if addy crc error
+		send SI cmd 0xFD to channel
+			return Err 4 on failure
+		send SI cmd 0xD: 0F0
+			if flag (cmd[5]) &  1, retest up to four times
+			return Err 1 if Not Present, IO Error, or error retesting device status
+			return Err 4 after four retests if flag & 1
+		send SI cmd 0xD: 370
+			ditto
+		send SI cmd 0xD: 040
+			ditto
+		send SI cmd 0xD: 2B0
+			ditto
+		send SI cmd 0xD: 018
+			ditto
+		check status
+			ditto
+		return 0xF if Slot Empty flag
+		send SI cmd 0xC: 000 00000100
+			return Err 1 if Not Present, IO Error, or error retesting device status
+			return Err 4 if data crc mismatch after four retests
+		read VRU state
+			check status
+				ditto
+			return Err 0xF if Slot Filled flag
+			state = send SI cmd 0xB: 000
+				return Err 1 if Not Present or IO Error
+				return Err 4 if data crc mismatch after four retests
+			return Err 0xF if state & 0x40
+		return Err 5 if state & 0xFF00
+		Otherwise you're good to go!
+
+USA initialization slightly different.
+	After sending 0xFD commands, wait until Count advances 0x23C346.
+	check status
+	state = send SI cmd 0xB: 000
+	save status read by 0xB command to a register for comparison later.  Looks like 0100 flag indicates USA.
+	continue as normal
+
+Step 2: send strings (J)
+	if state in (1, 3, 5):
+		check status
+			ditto
+		return Err 0xF if Slot Empty flag
+		return 5 if mode == 0
+		send SI cmd 0xC: 000 00000700
+			ditto
+		[presumes no error; if one occurs loads uninitialized value off stack]
+		retest 20 times
+			read VRU state
+				ditto
+			mode = 0 if state & 0xFF00
+			mode = 0, return 0 if (state & 7) == 0
+			return Err 5 if (state & 7) == 7
+			return Err state if state != 0xF
+			return Err 0x10 if all retests fail
+	check status
+		ditto
+	return Err 0xF if Slot Empty flag
+	send SI cmd 0xC: 000 0200##00	# number of strings
+		ditto
+	read VRU state
+		ditto
+	return Err 5 state & 0xFF00
+	for i in strings:
+		return Err 0xE if string unusable
+		check status
+			ditto
+		return Err 0xF if Slot Empty flag
+		byteswap i
+		buf[0:0x26 - len(i)] = repeat(0, 0x26 - len(i))
+		buf[0x26-len(i):] = i
+		buf[0x22-len(i)] = 3
+		if len(i) > 0xE:
+			send SI cmd 0xA: 000 buf[:0x14]
+				return Err 1 if Not Present or IO Error
+				return Err 4 if data crc mismatch after four retests
+		send SI cmd 0xA: 000 buf[0x14:0x28]
+			ditto
+		read VRU state
+			ditto
+		return Err 0xD if state & 0x100
+		return Err 0xE if state & 0x200
+		return Err 5 if state & 0xFF00
+	check status
+		ditto
+	return Err 0xF if Slot Empty flag
+	l = len(data) + (len(data) & 1)
+	if len(data) & 1:
+		data.append(0)
+	byteswap data
+	buf[0x12 - l] = 4
+	buf[0x14-l:] = data
+	send SI cmd 0xA: 000 buf[:0x14]
+		ditto
+	return Err 5 if state & 0xFF00
+
+Step 3: fetching results
+	uh...
+	???
+	profit!

@@ -1,0 +1,33 @@
+EDL Decompressor v1.0	10/24/2008
++-+-+-+-+-+-+-+-+-+-+
+
+  As the name suggests, EDLdec (probably) decompresses EDL-compressed files found in N64 games, possibly other platforms as well.  In particular, it (probably) decompresses those found in TWINE.  EDL formats 0, 1, and 2 are all supported.  Note that there is no support for recompression, as this is silly, tedious, and quite honestly I really can't express how little regard I hold for TWINE.
+
+  If the redundant parenthesis have not already given this point away, the decompressor has only been comparison tested against about a dozen binaries, so much of its claim that it produces proper output is based on the statistical chances against an improperly decompressed file being output to the correct size.  There is a fair chance that it may not work properly on all binaries you feed it.  Apologies if this is the case.
+
++-+-+
+Usage:
+EDLdec.exe [filename] [flags]
+	-h -?	displays help message and these commands
+	-q	quiet mode: only displays error messages
+	-s	swaps nibbles in output
+	-d	debug: displays information about writes and table lookup
+	-t	debug: outputs EDL1 intermediary files
+	-x	debug: deletes the output binary(ies)
+	Anything which appears on the command line and is not a flag is considered to be the filename.
+
+  Output files are sent to the current working directory.  In the case of standalone EDL files - more specifically files that start EDL - the output file will be [filename].bin.  If the file contains more than one EDL file, they will be named according to the hexadecimal offset at which each file occurs.
+
+  For the record, you can also redirect the console display to a text file in the standard way, i.e.:
+  EDLdec.exe file.EDL ->document.txt
+  If you only want to view a list of, say, all the binaries in TWINE, their sizes and whatnot, without actually dumping them all to a file, try using:
+  EDLdec.exe TWINE.N64 -x ->document.txt
+  Note that it will take a while before it can find the files and finish the operation.  There are 5 million or so bytes to scan before you get into the compressed binaries, after all ;*)
+
++-+-+
+
+  Provided is the source code for the decompressor, as well as annotated disassemblies of the decompression routines found in TWINE (N64).  For the record, my implementation is very poor, so you may want to just start over from scratch.
+
+  Oh, incidentally, the icon is a green->red channel modification of the icon in Microsoft's compressed (LZH) folders extension.  I translated the tool a while back, and thought the icon was sort of fitting concidering the compression has a common root.
+
+  Zoinkity (nefariousdogooder@yahoo.com)
