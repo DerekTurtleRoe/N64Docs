@@ -1,6 +1,6 @@
 # N64-documentation
 
- A repository where I try to document everything about the Nintendo 64 to the best of my ability.
+A repository where I try to document everything about the Nintendo 64 to the best of my ability.
 
 All the official and homebrew Nintendo 64 documents, in one place. About time, really.
 
