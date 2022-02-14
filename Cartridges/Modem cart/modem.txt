@@ -1,0 +1,55 @@
+Included in this archive are the following files:
+    dump-cmdj.jpg       pic of dumping rig
+    dump-nhxe.jpg       another pic of dumping rig
+    modem.bin           dump of the 64DD modem ROM
+    modem.txt           this readme
+    modem map.txt       list of all the addresses where the ROM answers
+    sketch_romdump.ino  arduino sketch used for dumping
+
+Hello n64devs,
+
+Did you know that Nintendo made a real, honest-to-goodness official modem for 
+N64? It goes into the cart slot like a game, but it's not bootable. It came with 
+the 64DD along with some internet software (I think a browser and mailer) on 
+disk. Nowadays the modem is completely useless: the browser disk dialed a 
+built-in number that cannot be changed, and that number is no longer in service. 
+RIP.
+
+If you've ever looked inside of it, you may have noticed that the modem cart 
+contains a maskrom, similar to other cartridges. There's no CIC in it though, so 
+there's definitely no way for the it to boot an N64 by itself.
+
+The usual way of dumping N64 games is via gameshark: you boot up with the 
+gameshark code generator active, then dump the game via the parallel port. That 
+doesn't work here: the gameshark needs a real cartridge to boot, with a CIC. The 
+modem doesn't have that. I ended up pulling the ROM out and dumping it with a 
+Teensy 3.0. You can find the sketch I used in this zip.
+
+Let's take a look at the header of the ROM.
+0000000: 8037 1240 0000 000f 0000 2000 0000 1449  .7.@...... ....I
+0000010: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+0000020: 4e49 4e54 454e 444f 3634 204d 4f44 454d  NINTENDO64 MODEM
+0000030: 2020 2020 0000 0000 0000 0043 4d44 4a00      .......CMDJ.
+0000040: 7f45 4c46 0102 0100 0000 0000 0000 0000  .ELF............
+0000050: 0001 0008 0000 0001 0000 0000 0000 0000  ................
+0000060: 0005 df50 0000 0000 0034 0000 0000 0028  ...P.....4.....(
+0000070: 000e 000b 0000 0000 0000 0000 0000 0000  ................
+0000080: 3c01 0000 d420 0000 4620 603c 8fa4 0010  <.... ..F `<....
+0000090: 0000 0000 4503 0001 4620 0306 1880 0013  ....E...F ......
+
+The ROM is slightly different from your average cart ROM:
+- It answers at address 0x18000000, instead of 0x10000000.
+- It does contains a standard 64-byte header, with game code CMDJ.
+- CRCs are zeroed out.
+- There is no IPL3. Content starts right after the 64-byte header.
+- The ROM is 4MB, but mirrored to 8MB: one copy at 0x18000000, and another at 
+  0x18400000.
+- There are three ELFs at addresses 0x40, 0x100000, and 0x200000. They are all a 
+  little bit different. I think they are softmodems?
+
+I dumped this back in 2013 and never released it. Have fun.
+
+Best,
+jrra, 2015
+
+jrra@jrra.zone
