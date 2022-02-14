@@ -1,0 +1,2 @@
+# Cart scans
+These aren't named/labelled, and this is a large collection of various carts, regions, etc. This is currently disorganized, and mostly taken from a site that to my knowledge no longer exists. My own carts I can take images of, but that will take some time since I bought most of them from StoneAgeGamer and they all had a lot of rust and water damage. I also don't have a "professional" camera, so it'd be smartphone pictures. Not an ideal situation is what I'm saying.
