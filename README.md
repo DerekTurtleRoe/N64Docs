@@ -22,7 +22,7 @@ This repo isn't much now, but I'll be consistently updating it with new informat
 
 This isn't required or necessary, I'll keep doing this as long as I am able. I have been unemployed since 2016 and so I do this all in my free time and with my own (very little) money.
 
-But more money helps fund things like dumping tools, more ambitious research endeavors, tools, buying games to dump, etc. 
+But more money helps fund things like dumping tools, more ambitious research endeavors, tools, buying games to dump, etc.
 
 If you are looking for more information or resources about the N64, here are some other places with good information:
 
@@ -90,12 +90,20 @@ m4xw - Info about Mupen64Plus and Mupen64Plus-Next
 
 olivieryuyu - Various technical info and documentation
 
+Bighead - Who's massive amount of Project64 testing in the past provided some useful test methodology and gave some very useful insight
+
 Rosalie - Some info and fantastic plugins and interface for Mupen64Plus!
 
 WeinerSchnitzel - Various info, tips, etc
 
 Squall Leonhart - Various info, tips, and suggestions
 
-My friends at Nintendo - Thanks for making such amazing systems and games in the first place!
+Cowering - For the GoodN64 database, which was the only N64 ROM database for a very long time.
+
+No-Intro community - For all their help with dumping info, dumping prototypes/betas/review samples/etc.
+
+Redump community - For more dumping info.
+
+My friends at Nintendo - Thanks for making such amazing systems and games in the first place! (also some of their support staff are really friendly and very helpful!)
 
 The people who answered my emails at SGI and NEC - Thanks for being so helpful!
