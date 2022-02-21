@@ -65,3 +65,7 @@ I have found another error in the n64 rsp documents with the vmacq opcode.
 So when it tests for zero it only does it on the acc[47:21] bits only. Not the whole number. The cheat sheet in it says the whole number is tested
 
 -------------------------------------------------------------------------------------------
+
+The VSAR instruction in the RSP manual is incorrect
+
+-------------------------------------------------------------------------------------------
