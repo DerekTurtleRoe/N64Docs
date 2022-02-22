@@ -92,6 +92,8 @@ olivieryuyu - Various technical info and documentation
 
 Bighead - Who's massive amount of Project64 testing in the past provided some useful test methodology and gave some very useful insight
 
+bryc - Saves and file format info, general info about backup units and their formatting
+
 Rosalie - Some info and fantastic plugins and interface for Mupen64Plus!
 
 WeinerSchnitzel - Various info, tips, etc
