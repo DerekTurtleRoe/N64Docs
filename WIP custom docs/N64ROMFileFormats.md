@@ -55,6 +55,8 @@ EverDrive 64 does saves in little-endian. It is compatible with Project64/Mupen6
 
 The RetroArch cores concatenate every possible save into one file, including paks for each controller.
 
+Note that the actual byte order of a ROM may not always be the one expected from its file extension.
+
 | Type | Offset | Size |
 |--------|--------|
 | EEPROM | 0 | 2048 |
