@@ -1,4 +1,4 @@
-Nintendo 64 dumping hardware
+# Nintendo 64 dumping hardware
 
 ## Retrode 2 with Nintendo 64 plugin
 
