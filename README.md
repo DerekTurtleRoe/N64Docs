@@ -1,4 +1,4 @@
-# N64-documentation
+# N64Docs
 
 A repository where I try to document everything about the Nintendo 64 to the best of my ability.
 
